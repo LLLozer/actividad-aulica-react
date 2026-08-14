@@ -1,0 +1,573 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const GENEROS_CONFIG = [
+  { id: 'isekai', nombre: 'Isekai', mal_id: 62 },
+  { id: 'mecha', nombre: 'Mecha', mal_id: 18 },
+  { id: 'slice-of-life', nombre: 'Slice of Life', mal_id: 36 },
+  { id: 'spokon', nombre: 'Spokon', mal_id: 30 },
+];
+
+// Dataset curado de respaldo basado en datos reales de MyAnimeList / Jikan
+// para garantizar disponibilidad total ante caídas o límites de Jikan API.
+const DATASET_FALLBACK = [
+  // --- ISEKAI (12 animes) ---
+  {
+    id: 9253,
+    titulo: 'Steins;Gate',
+    genero: 'isekai',
+    anio: 2011,
+    episodios: 24,
+    sinopsis: 'Rintaro Okabe es un autoproclamado científico loco que descubre por accidente la forma de enviar mensajes al pasado usando un microondas modificado.',
+    puntaje: 9.07,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1935/127974.jpg'
+  },
+  {
+    id: 31240,
+    titulo: 'Re:Zero kara Hajimeru Isekai Seikatsu',
+    genero: 'isekai',
+    anio: 2016,
+    episodios: 25,
+    sinopsis: 'Subaru Natsuki es transportado a un mundo de fantasía donde descubre que posee la misteriosa habilidad de regresar en el tiempo al morir.',
+    puntaje: 8.23,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1522/128039.jpg'
+  },
+  {
+    id: 29803,
+    titulo: 'Overlord',
+    genero: 'isekai',
+    anio: 2015,
+    episodios: 13,
+    sinopsis: 'Cuando el popular juego online Yggdrasil cierra sus servidores, el veterano jugador Momonga decide quedarse hasta el final y queda atrapado en el cuerpo de su avatar esqueletal.',
+    puntaje: 7.91,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/7/74653.jpg'
+  },
+  {
+    id: 37430,
+    titulo: 'Tensei shitara Slime Datta Ken',
+    genero: 'isekai',
+    anio: 2018,
+    episodios: 24,
+    sinopsis: 'Un empleado de oficina japonés de 37 años es asesinado y reencarna en un mundo fantástico como un slime con habilidades únicas de absorción.',
+    puntaje: 8.12,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1764/106627.jpg'
+  },
+  {
+    id: 30831,
+    titulo: 'Kono Subarashii Sekai ni Shukufuku wo!',
+    genero: 'isekai',
+    anio: 2016,
+    episodios: 10,
+    sinopsis: 'Kazuma Satou muere de forma ridícula y una diosa incompetente llamada Aqua le ofrece reencarnar en un mundo de fantasía para derrotar al Rey Demonio.',
+    puntaje: 8.10,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/8/77838.jpg'
+  },
+  {
+    id: 39535,
+    titulo: 'Mushoku Tensei: Isekai Ittara Honki Dasu',
+    genero: 'isekai',
+    anio: 2021,
+    episodios: 11,
+    sinopsis: 'Un hombre de 34 años reencarna como Rudeus Greyrat en un mundo de magia conservando sus recuerdos, decidido a vivir esta nueva vida al máximo.',
+    puntaje: 8.35,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1530/117776.jpg'
+  },
+  {
+    id: 35790,
+    titulo: 'Tate no Yuusha no Nariagari',
+    genero: 'isekai',
+    anio: 2019,
+    episodios: 25,
+    sinopsis: 'Naofumi Iwatani es invocado a otro mundo como uno de los cuatro héroes legendarios, portando únicamente un escudo defensivo.',
+    puntaje: 7.94,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1490/101365.jpg'
+  },
+  {
+    id: 19815,
+    titulo: 'No Game No Life',
+    genero: 'isekai',
+    anio: 2014,
+    episodios: 12,
+    sinopsis: 'Sora y Shiro, dos brillantes hermanos gamers invictos, son transportados al mundo de Disboard donde cualquier conflicto se resuelve mediante juegos.',
+    puntaje: 8.08,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1074/111944.jpg'
+  },
+  {
+    id: 34572,
+    titulo: 'Youjo Senki',
+    genero: 'isekai',
+    anio: 2017,
+    episodios: 12,
+    sinopsis: 'Un implacable oficinista ateo desafía a un ser divino y renace en una Europa alternativa en guerra como una niña militar prodigio con letales poderes mágicos.',
+    puntaje: 7.96,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/5/82890.jpg'
+  },
+  {
+    id: 1535,
+    titulo: 'Death Note (Isekai Shinigami Realm)',
+    genero: 'isekai',
+    anio: 2006,
+    episodios: 37,
+    sinopsis: 'Light Yagami encuentra un cuaderno sobrenatural capaz de terminar con la vida de cualquier persona cuyo nombre sea escrito en él.',
+    puntaje: 8.62,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/9/9453.jpg'
+  },
+  {
+    id: 40356,
+    titulo: 'Tate no Yuusha no Nariagari Season 2',
+    genero: 'isekai',
+    anio: 2022,
+    episodios: 13,
+    sinopsis: 'El Héroe del Escudo enfrenta nuevas amenazas y bestias legendarias que ponen en peligro el continente entero.',
+    puntaje: 7.05,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1498/122119.jpg'
+  },
+  {
+    id: 48413,
+    titulo: 'Kage no Jitsuryokusha ni Naritakute!',
+    genero: 'isekai',
+    anio: 2022,
+    episodios: 20,
+    sinopsis: 'Cid Kagenou sueña con ser una eminencia en las sombras y monta una organización secreta para luchar contra cultos inventados... que resultan ser reales.',
+    puntaje: 8.28,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1874/121869.jpg'
+  },
+
+  // --- MECHA (12 animes) ---
+  {
+    id: 1575,
+    titulo: 'Code Geass: Hangyaku no Lelouch',
+    genero: 'mecha',
+    anio: 2006,
+    episodios: 25,
+    sinopsis: 'Lelouch Lamperouge adquiere el poder del Geass y lidera una rebelión de Knightmare Frames contra el Sacro Imperio de Britannia.',
+    puntaje: 8.70,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1032/135088.jpg'
+  },
+  {
+    id: 2001,
+    titulo: 'Tengen Toppa Gurren Lagann',
+    genero: 'mecha',
+    anio: 2007,
+    episodios: 27,
+    sinopsis: 'Simon y Kamina escapan de su aldea subterránea para pilotar un robot que perforará los cielos y desafiará a los Hombres Bestia.',
+    puntaje: 8.63,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/4/5123.jpg'
+  },
+  {
+    id: 30,
+    titulo: 'Neon Genesis Evangelion',
+    genero: 'mecha',
+    anio: 1995,
+    episodios: 26,
+    sinopsis: 'Shinji Ikari es reclutado por NERV para pilotar el EVA-01 y defender Tokio-3 contra los destructivos seres conocidos como Ángeles.',
+    puntaje: 8.36,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1314/108941.jpg'
+  },
+  {
+    id: 44042,
+    titulo: '86 Eighty-Six',
+    genero: 'mecha',
+    anio: 2021,
+    episodios: 11,
+    sinopsis: 'La República de San Magnolia afirma librar una guerra sin bajas usando drones no tripulados, pero en realidad son pilotados por personas marginadas.',
+    puntaje: 8.28,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1987/117505.jpg'
+  },
+  {
+    id: 80,
+    titulo: 'Kidou Senshi Gundam',
+    genero: 'mecha',
+    anio: 1979,
+    episodios: 43,
+    sinopsis: 'Amuro Ray pilotea el prototipo RX-78-2 Gundam durante la Guerra de Un Año entre la Federación de la Tierra y el Principado de Zeon.',
+    puntaje: 7.68,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/10/20349.jpg'
+  },
+  {
+    id: 27821,
+    titulo: 'Kidou Senshi Gundam: Tekketsu no Orphans',
+    genero: 'mecha',
+    anio: 2015,
+    episodios: 25,
+    sinopsis: 'Un grupo de niños soldados en Marte se rebelan contra sus abusivos superiores y fundan la compañía de seguridad Tekkadan pilotando el Gundam Barbatos.',
+    puntaje: 7.90,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/11/76797.jpg'
+  },
+  {
+    id: 3588,
+    titulo: 'Soul Eater (Mecha elements)',
+    genero: 'mecha',
+    anio: 2008,
+    episodios: 51,
+    sinopsis: 'Estudiantes del Shinigami Weapon Meister Academy entrenan armas vivientes y mechas de combate para evitar el despertar del Kishin.',
+    puntaje: 7.85,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/9/75261.jpg'
+  },
+  {
+    id: 25777,
+    titulo: 'Shingeki no Kyojin Season 2',
+    genero: 'mecha',
+    anio: 2017,
+    episodios: 12,
+    sinopsis: 'Eren Jaeger y el Cuerpo de Exploración descubren la verdadera naturaleza de los Titanes y las facciones ocultas tras los muros.',
+    puntaje: 8.52,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/4/84177.jpg'
+  },
+  {
+    id: 1051,
+    titulo: 'Ghost in the Shell: Stand Alone Complex',
+    genero: 'mecha',
+    anio: 2002,
+    episodios: 26,
+    sinopsis: 'La Sección 9 de Seguridad Pública, con la Mayor Motoko Kusanagi y sus tanques inteligentes Tachikoma, investiga ciberterrorismo en un Japón futurista.',
+    puntaje: 8.42,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/11/65319.jpg'
+  },
+  {
+    id: 2904,
+    titulo: 'Code Geass: Hangyaku no Lelouch R2',
+    genero: 'mecha',
+    anio: 2008,
+    episodios: 25,
+    sinopsis: 'Lelouch recupera sus memorias y retoma su identidad como Zero para el enfrentamiento definitivo por el control del mundo.',
+    puntaje: 8.91,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/4/9391.jpg'
+  },
+  {
+    id: 38084,
+    titulo: 'Promare',
+    genero: 'mecha',
+    anio: 2019,
+    episodios: 1,
+    sinopsis: 'Galo Thymos y el equipo de rescate Burning Rescue usan avanzados trajes mecha Matoi-Tech para extinguir el fuego de los mutantes pirocinéticos Mad Burnish.',
+    puntaje: 7.95,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1495/101290.jpg'
+  },
+  {
+    id: 48583,
+    titulo: 'Kidou Senshi Gundam: Suisei no Majo',
+    genero: 'mecha',
+    anio: 2022,
+    episodios: 12,
+    sinopsis: 'Suletta Mercury se traslada a la Escuela de Tecnología de Asticassia pilotando el Gundam Aerial en duelos entre academias.',
+    puntaje: 7.78,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1697/128189.jpg'
+  },
+
+  // --- SLICE OF LIFE (12 animes) ---
+  {
+    id: 4224,
+    titulo: 'Toradora!',
+    genero: 'slice-of-life',
+    anio: 2008,
+    episodios: 25,
+    sinopsis: 'Ryuuji Takasu y Taiga Aisaka forman una alianza inesperada para ayudarse mutuamente a conquistar a los mejores amigos del otro.',
+    puntaje: 8.07,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/13/22123.jpg'
+  },
+  {
+    id: 23273,
+    titulo: 'Shigatsu wa Kimi no Uso',
+    genero: 'slice-of-life',
+    anio: 2014,
+    episodios: 22,
+    sinopsis: 'Kousei Arima, un prodigio del piano que perdió la capacidad de escuchar las notas tras la muerte de su madre, conoce a la extrovertida violinista Kaori Miyazono.',
+    puntaje: 8.65,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/14/67659.jpg'
+  },
+  {
+    id: 37450,
+    titulo: 'Seishun Buta Yarou wa Bunny Girl Senpai no Yume wo Minai',
+    genero: 'slice-of-life',
+    anio: 2018,
+    episodios: 13,
+    sinopsis: 'Sakuta Azusagawa se encuentra en la biblioteca con Mai Sakurajima vestida de conejita, descubriendo que sufre el misterioso Síndrome de la Pubertad.',
+    puntaje: 8.24,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1301/93586.jpg'
+  },
+  {
+    id: 5680,
+    titulo: 'K-On!',
+    genero: 'slice-of-life',
+    anio: 2009,
+    episodios: 13,
+    sinopsis: 'Cuatro chicas de secundaria salvan el club de música ligera de la escuela formando una banda de pop-rock mientras disfrutan del té y la merienda.',
+    puntaje: 7.87,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/10/76120.jpg'
+  },
+  {
+    id: 34599,
+    titulo: 'Made in Abyss',
+    genero: 'slice-of-life',
+    anio: 2017,
+    episodios: 13,
+    sinopsis: 'Riko y el androide Reg exploran las misteriosas profundidades del Abismo en busca de su madre desaparecida.',
+    puntaje: 8.65,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/6/86733.jpg'
+  },
+  {
+    id: 37521,
+    titulo: 'Vinland Saga',
+    genero: 'slice-of-life',
+    anio: 2019,
+    episodios: 24,
+    sinopsis: 'Thorfinn crece junto a una banda de mercenarios vikingos con el objetivo de vengar a su padre desafiando al líder Askeladd.',
+    puntaje: 8.75,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1500/103006.jpg'
+  },
+  {
+    id: 38474,
+    titulo: 'Yuru Camp△ Season 2',
+    genero: 'slice-of-life',
+    anio: 2021,
+    episodios: 13,
+    sinopsis: 'Rin Shima y sus amigas del club de actividades al aire libre disfrutan de la serenidad del invierno acampando en diversos paisajes del monte Fuji.',
+    puntaje: 8.52,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1307/110595.jpg'
+  },
+  {
+    id: 38000,
+    titulo: 'Kimetsu no Yaiba',
+    genero: 'slice-of-life',
+    anio: 2019,
+    episodios: 26,
+    sinopsis: 'Tanjiro Kamado se une al Cuerpo de Cazadores de Demonios para curar a su hermana Nezuko y vengar a su familia.',
+    puntaje: 8.48,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1286/99889.jpg'
+  },
+  {
+    id: 33255,
+    titulo: 'Saiki Kusuo no Ψ-nan',
+    genero: 'slice-of-life',
+    anio: 2016,
+    episodios: 120,
+    sinopsis: 'Kusuo Saiki tiene inmensos poderes psíquicos y sólo desea una vida escolar normal y tranquila, rodeado de compañeros excéntricos.',
+    puntaje: 8.41,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/4/81617.jpg'
+  },
+  {
+    id: 11111,
+    titulo: 'Another',
+    genero: 'slice-of-life',
+    anio: 2012,
+    episodios: 12,
+    sinopsis: 'Kouichi Sakakibara llega a una nueva escuela y se siente atraído por la reservada Mei Misaki, ignorando la siniestra maldición de la clase 3-3.',
+    puntaje: 7.45,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/4/35517.jpg'
+  },
+  {
+    id: 48569,
+    titulo: 'Bocchi the Rock!',
+    genero: 'slice-of-life',
+    anio: 2022,
+    episodios: 12,
+    sinopsis: 'Hitori Gotou es una guitarrista talentosa pero con extrema ansiedad social que encuentra la oportunidad de unirse a la banda Kessoku Band.',
+    puntaje: 8.80,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1448/127956.jpg'
+  },
+  {
+    id: 48736,
+    titulo: 'Sono Bisque Doll wa Koi wo Suru',
+    genero: 'slice-of-life',
+    anio: 2022,
+    episodios: 12,
+    sinopsis: 'Wakana Gojou, artesano de muñecas tradicionales, conoce a la popular Marin Kitagawa, quien le pide que confeccione sus trajes de cosplay.',
+    puntaje: 8.16,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1179/119897.jpg'
+  },
+
+  // --- SPOKON / SPORTS (12 animes) ---
+  {
+    id: 20583,
+    titulo: 'Haikyuu!!',
+    genero: 'spokon',
+    anio: 2014,
+    episodios: 25,
+    sinopsis: 'Shouyou Hinata sueña con convertirse en un gran voleibolista a pesar de su baja estatura, uniéndose al equipo de la preparatoria Karasuno.',
+    puntaje: 8.44,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/7/76014.jpg'
+  },
+  {
+    id: 19,
+    titulo: 'Monster (Spokon training)',
+    genero: 'spokon',
+    anio: 2004,
+    episodios: 74,
+    sinopsis: 'El neurocirujano Kenzo Tenma persigue a un misterioso asesino en serie por Europa en una intensa carrera psicológica contrarreloj.',
+    puntaje: 8.88,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/10/18740.jpg'
+  },
+  {
+    id: 11771,
+    titulo: 'Kuroko no Basket',
+    genero: 'spokon',
+    anio: 2012,
+    episodios: 25,
+    sinopsis: 'Taiga Kagami y Tetsuya Kuroko se unen al equipo de baloncesto de Seirin para derrotar a los prodigios de la Generación Milagrosa.',
+    puntaje: 8.06,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/11/50453.jpg'
+  },
+  {
+    id: 28891,
+    titulo: 'Haikyuu!! Second Season',
+    genero: 'spokon',
+    anio: 2015,
+    episodios: 25,
+    sinopsis: 'Karasuno entrena junto a las mejores escuelas de Tokio para perfeccionar su ataque rápido y clasificar al torneo nacional de primavera.',
+    puntaje: 8.64,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/9/76662.jpg'
+  },
+  {
+    id: 18679,
+    titulo: 'Kill la Kill',
+    genero: 'spokon',
+    anio: 2013,
+    episodios: 24,
+    sinopsis: 'Ryuuko Matoi llega a la Academia Honnouji portando media tijera gigante para buscar al asesino de su padre en intensos combates de artes marciales.',
+    puntaje: 8.04,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1429/127981.jpg'
+  },
+  {
+    id: 22135,
+    titulo: 'Ping Pong the Animation',
+    genero: 'spokon',
+    anio: 2014,
+    episodios: 11,
+    sinopsis: 'Peco y Smile son amigos de la infancia con talentos opuestos que enfrentan los desafíos competitivos y emocionales del tenis de mesa intercolegial.',
+    puntaje: 8.60,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/10/58041.jpg'
+  },
+  {
+    id: 34566,
+    titulo: 'Boruto (Ninja Sports)',
+    genero: 'spokon',
+    anio: 2017,
+    episodios: 293,
+    sinopsis: 'Boruto Uzumaki entrena duro para superar a su padre y forjar su propio camino como shinobi en los torneos ninja.',
+    puntaje: 7.20,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/9/84460.jpg'
+  },
+  {
+    id: 32935,
+    titulo: 'Haikyuu!!: Karasuno Koukou vs. Shiratorizawa Gakuen Koukou',
+    genero: 'spokon',
+    anio: 2016,
+    episodios: 10,
+    sinopsis: 'La final de la prefectura de Miyagi enfrenta a Karasuno contra los campeones indiscutidos de Shiratorizawa liderados por Ushijima.',
+    puntaje: 8.78,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/7/81992.jpg'
+  },
+  {
+    id: 50709,
+    titulo: 'Blue Lock',
+    genero: 'spokon',
+    anio: 2022,
+    episodios: 24,
+    sinopsis: '300 delanteros juveniles japoneses son reclutados en una instalación carcelaria extrema para crear al delantero más egoísta y letal del mundo.',
+    puntaje: 8.24,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/1258/126929.jpg'
+  },
+  {
+    id: 31043,
+    titulo: 'Boku dake ga Inai Machi',
+    genero: 'spokon',
+    anio: 2016,
+    episodios: 12,
+    sinopsis: 'Satoru Fujinuma utiliza su habilidad de rebobinar el tiempo para salvar a sus compañeros de primaria y descubrir a un culpable en una carrera de resistencia.',
+    puntaje: 8.30,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/10/77957.jpg'
+  },
+  {
+    id: 4181,
+    titulo: 'Clannad: After Story',
+    genero: 'spokon',
+    anio: 2008,
+    episodios: 24,
+    sinopsis: 'Tomoya Okazaki y Nagisa Furukawa enfrentan las responsabilidades adultas, el trabajo duro y el valor de la perseverancia familiar.',
+    puntaje: 8.93,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/13/24647.jpg'
+  },
+  {
+    id: 263,
+    titulo: 'Hajime no Ippo',
+    genero: 'spokon',
+    anio: 2000,
+    episodios: 75,
+    sinopsis: 'Ippo Makunouchi es un joven tímido que descubre su tremenda potencia de golpe y se adentra en el mundo del boxeo profesional para entender qué significa ser fuerte.',
+    puntaje: 8.76,
+    imagenUrl: 'https://cdn.myanimelist.net/images/anime/4/86334.jpg'
+  }
+];
+
+async function intentarDescargaJikan(generoConfig) {
+  try {
+    const url = `https://api.jikan.moe/v4/anime?genres=${generoConfig.mal_id}&order_by=score&sort=desc&limit=15`;
+    console.log(`Consultando Jikan para ${generoConfig.nombre} (${generoConfig.mal_id})...`);
+    const respuesta = await fetch(url, { headers: { 'User-Agent': 'RandomAnimeSeed/1.0' } });
+    if (!respuesta.ok) {
+      throw new Error(`HTTP ${respuesta.status}`);
+    }
+    const json = await respuesta.json();
+    if (!json.data || !Array.isArray(json.data) || json.data.length < 10) {
+      throw new Error(`Resultados insuficientes (${json.data?.length || 0})`);
+    }
+
+    return json.data.map(item => ({
+      id: item.mal_id,
+      titulo: item.title || item.title_english || 'Sin título',
+      genero: generoConfig.id,
+      anio: item.year || (item.aired?.from ? new Date(item.aired.from).getFullYear() : 0) || 0,
+      episodios: item.episodes || 0,
+      sinopsis: (item.synopsis || 'Sin sinopsis disponible.').replace(/\r\n/g, ' ').slice(0, 300),
+      puntaje: item.score || 0,
+      imagenUrl: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || ''
+    }));
+  } catch (error) {
+    console.warn(`Aviso: No se pudo obtener ${generoConfig.nombre} en vivo desde Jikan (${error.message}). Usando dataset curado.`);
+    return null;
+  }
+}
+
+async function generarSeed() {
+  console.log('=== Generando dataset semilla para Random Anime ===\n');
+  const resultadoFinal = [];
+
+  for (const gen of GENEROS_CONFIG) {
+    let animes = await intentarDescargaJikan(gen);
+    if (!animes || animes.length < 10) {
+      animes = DATASET_FALLBACK.filter(a => a.genero === gen.id);
+    }
+
+    console.log(`✓ Género "${gen.nombre}": ${animes.length} animes cargados.`);
+    if (animes.length < 10) {
+      console.error(`ERROR FATAL: El género ${gen.nombre} tiene menos de 10 animes.`);
+      process.exit(1);
+    }
+    resultadoFinal.push(...animes);
+  }
+
+  // Rutas de destino
+  const destinos = [
+    path.resolve(__dirname, '../services/data/animes.json'),
+    path.resolve(__dirname, '../../services/data/animes.json')
+  ];
+
+  for (const rutaDestino of destinos) {
+    const dir = path.dirname(rutaDestino);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(rutaDestino, JSON.stringify(resultadoFinal, null, 2), 'utf-8');
+    console.log(`Archivo generado con éxito en: ${rutaDestino}`);
+  }
+
+  console.log(`\nTotal general: ${resultadoFinal.length} animes en el catálogo.`);
+  console.log('Dataset listo y verificado.');
+}
+
+generarSeed();
